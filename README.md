@@ -1,7 +1,5 @@
 # CLI::ParseArgs
 
-## SYNOPSIS
-
 Parse command line arguments in a Perl script.
 
 This OO module processes command line interface arguments based on specified parameters.
