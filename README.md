@@ -177,6 +177,10 @@ This OO module processes command line interface arguments based on specified par
 
   Output the specified message to STDERR if debugging is on/true.
 
+## DEPENDENCIES
+
+None.
+
 ## BUGS/CAVEATS
 
 None known.
