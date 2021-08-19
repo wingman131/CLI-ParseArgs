@@ -2,6 +2,8 @@ package CLI::ParseArgs;
 
 use strict;
 
+our $VERSION = 1.0;
+
 ## TODO:
 # - Allow valid args to indicate when a value is or isn't expected
 # - Allow valid args to indicate when multiple instances are allowed
