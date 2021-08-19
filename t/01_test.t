@@ -1,12 +1,10 @@
 #!/usr/bin/perl
 use strict;
-use Untaint;
 use Test::More;
 
 plan tests => 4;
 
-my $app_root = Untaint::linux_file_path($ENV{'APPLICATION_ROOT'});
-my $cmd      = "$app_root/tests/perllib/CLI/ParseArgs/script_01.pl";
+my $cmd = "./script_01.pl";
 
 my $name = 'Charlie';
 my $file = '/var/log/some.log';
@@ -26,12 +24,10 @@ is($l_count, 2, "-l/--long-name looks good");
 my $f_count = count_instances(\@results, "-f $file");
 is($f_count, 2, "-f looks good");
 
-sub count_instances
-{
+sub count_instances {
 	my ($aref, $str) = @_;
 	my $count = 0;
-	for my $item (@$aref)
-	{
+	for my $item (@$aref) {
 		$count++ if index($item, $str) > -1;
 	}
 	return $count;

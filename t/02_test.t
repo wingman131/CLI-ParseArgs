@@ -1,10 +1,8 @@
 #!/usr/bin/perl
 use strict;
-use Untaint;
 use Test::More;
 
-my $app_root = Untaint::linux_file_path($ENV{'APPLICATION_ROOT'});
-my $cmd      = "$app_root/tests/perllib/CLI/ParseArgs/script_01.pl";
+my $cmd = "./script_01.pl";
 
 subtest "Help triggered by missing arg" => sub {
 	my $results = `$cmd -id $$ --long-name Charlie -d`;
@@ -23,7 +21,7 @@ subtest "Help trigger explicitly" => sub {
 };
 
 subtest "Help trigger explicitly when no help is available" => sub {
-	my $cmd = "$app_root/tests/perllib/CLI/ParseArgs/script_02.pl";
+	my $cmd = "./script_02.pl";
 
 	# in this case, help will be triggered due to missing required args, but should send an exit/error code
 	my $err = system($cmd, '-h');
