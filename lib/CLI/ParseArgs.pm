@@ -2,10 +2,9 @@ package CLI::ParseArgs;
 
 use strict;
 
-our $VERSION = 1.0;
+our $VERSION = 1.1;
 
 ## TODO:
-# - Allow valid args to indicate when a value is or isn't expected
 # - Allow valid args to indicate when multiple instances are allowed
 
 sub new {
@@ -93,6 +92,7 @@ sub set_valid_args {
 	my ($self, $args_href) = @_;
 	$self->set_valid_arg($_, $args_href->{$_}) for (keys %$args_href);
 	$self->_check_for_debug_arg();
+	$self->_check_for_dry_run_arg();
 	return;
 }
 
@@ -204,7 +204,7 @@ sub process_cli_args {
 		}
 		else {
 			warn("Invalid argument: '$arg'");
-			print $self->help_msg();
+			print($self->help_msg());
 			exit(1);
 		}
 	}
@@ -225,6 +225,11 @@ sub process_cli_args {
 		}
 	}
 
+	if (my $dry_run_flag = $self->get_dry_run_flag()) {
+		$self->is_dry_run($self->get_arg_value($dry_run_flag));
+		$self->dry_run_msg("This is a DRY RUN - no changes will be made");
+	}
+
 	if (my $help_flag = $self->get_help_flag()) {
 		for my $hf (@$help_flag) {
 			my $help_val = $self->get_arg_value($hf);
@@ -238,7 +243,6 @@ sub process_cli_args {
 	}
 
 	my $invalid_count = 0;
-
 	for my $arg ($self->list_required_args()) {
 		if (! defined($self->get_arg_value($arg))) {
 			$invalid_count++;
@@ -354,7 +358,7 @@ sub _check_for_help_arg {
 		my @potential_flags = ('-h', '--help');
 		for my $flag (@potential_flags) {
 			if (! exists($valid_args{$flag})) {
-				my $options = {req => 0, desc => "Show help message", help => 1, no_value => 1};
+				my $options = {desc => "Show help message", help => 1, no_value => 1};
 				$options->{'alias'} = $potential_flags[1] if (
 					$flag eq $potential_flags[0]
 					&& ! exists($valid_args{$potential_flags[1]})
@@ -372,8 +376,9 @@ sub _check_for_help_arg {
 
 sub debug_msg {
 	my ($self, $msg) = @_;
-	print STDERR "[debug] $msg\n" if $self->debugging();
-	return;
+	return unless $self->debugging();
+	print(STDERR "[debug] $msg\n");
+	return 1; # indicate message was output
 }
 
 sub get_debug_flag {
@@ -384,19 +389,19 @@ sub get_debug_flag {
 sub debugging {
 	my ($self, $value) = @_;
 
+	my $property = 'debugging';
 	if (@_ == 2) {
-		$self->{'debugging'} = $value;
+		$self->{$property} = $value;
 		return;
 	}
 
-	return $self->{'debugging'};
+	return $self->{$property};
 }
 
 sub _check_for_debug_arg {
 	my ($self) = @_;
 
 	my %valid_args = $self->get_valid_args();
-
 	for my $arg (keys %valid_args) {
 		if ($valid_args{$arg}->{'debug'} || ($arg =~ /-d/i && $valid_args{$arg}->{'desc'} =~ /\bdebug/i)) {
 			# allow override for the assumptions made by the second criteria above (e.g. "debug => 0")
@@ -409,11 +414,49 @@ sub _check_for_debug_arg {
 	return;
 }
 
-sub _check_for_aliases {
+sub dry_run_msg {
+	my ($self, $msg) = @_;
+	return unless $self->is_dry_run();
+	print("[dry-run] $msg\n");
+	return 1; # indicate message was output
+}
+
+sub get_dry_run_flag {
+	my ($self) = @_;
+	return $self->{'dry_run_flag'};
+}
+
+sub is_dry_run {
+	my ($self, $value) = @_;
+
+	my $property = 'is_dry_run';
+	if (@_ == 2) {
+		$self->{$property} = $value;
+		return;
+	}
+
+	return $self->{$property};
+}
+
+sub _check_for_dry_run_arg {
 	my ($self) = @_;
 
 	my %valid_args = $self->get_valid_args();
 
+	for my $arg (keys %valid_args) {
+		if ($valid_args{$arg}->{'dryrun'} || $valid_args{$arg}->{'dry_run'}) {
+			$self->{'dry_run_flag'} = $arg;
+			last;
+		}
+	}
+
+	return;
+}
+
+sub _check_for_aliases {
+	my ($self) = @_;
+
+	my %valid_args = $self->get_valid_args();
 	for my $arg (keys %valid_args) {
 		if (my $alias = $valid_args{$arg}->{'alias'}) {
 			my $options = {};
@@ -460,14 +503,12 @@ Parse command line arguments
              validation => \&Untaint::linux_file_path,
          },
          '-d' => {
-             req => 0,
              desc => "Show debugging messages (via STDERR)",
              alias => "--debug",
              debug => 1,
              no_value => 1,
          },
          '--dry-run' => {
-             req => 0,
              desc => "Report what would happen without altering any data",
              no_value => 1,
          },
@@ -485,6 +526,12 @@ Parse command line arguments
  $pa->process_cli_args(); # no need to receive the values in a hash
 
  my $id = $pa->get_arg_value('-id');
+
+ $pa->dry_run_msg("Say what would happen if this was a live run.");
+
+ if (not $pa->is_dry_run()) {
+	 # do live-run stuff here
+ }
 
 =head1 DESCRIPTION
 
@@ -609,6 +656,16 @@ Return the help message (string).
 
 Output the specified message to STDERR if debugging is on/true.
 
+=item dry_run_msg()
+
+Output the specified message to STDOUT if dry-run is on/true.
+
+=item is_dry_run()
+
+Get or set dry-run indicator (true/false).
+
+This will be set automatically if a 'dryrun' argument is found.
+
 =head1 BUGS/CAVEATS
 
 None known.
@@ -619,7 +676,7 @@ John Winger
 
 =head1 COPYRIGHT
 
-(c) Copyright 2021, John Winger.
+(c) Copyright 2023, John Winger.
 
 This program is free software. You may copy or redistribute it under the same terms as Perl itself.
 
